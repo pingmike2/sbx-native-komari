@@ -18,7 +18,7 @@
 | `PROJECT_URL` | 空 | 项目公网 URL。用于上传订阅和自动保活。 |
 | `AUTO_ACCESS` | `false` | 设置为 `true` 时向保活服务提交 `PROJECT_URL`。 |
 | `YT_WARPOUT` | `false` | 设置为 `true` 时强制 YouTube 走 WARP 出站规则。 |
-| `FILE_PATH` | `.npm` | 运行目录，存放动态库、配置、订阅和临时文件。 |
+| `FILE_PATH` |      | 运行目录，存放动态库、配置、订阅和临时文件。 |
 | `SUB_PATH` | `sub` | 订阅token，例如 `/sub`。 |
 | `UUID` | `0a6568ff-ea3c-4271-9020-450560e10d63` | 节点 UUID。建议自行修改。 |
 | `NEZHA_SERVER` | 空 | 哪吒面板地址。v1：`nezha.xxx.com:8008` v0: `nezha.xxx.com` |
