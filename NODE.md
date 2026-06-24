@@ -1,14 +1,14 @@
 # Node.js Sbx Native
 
-Node.js 版本的 sing-box native 用于部署VMess Ws + Argo、VLESS Reality、Hysteria2、TUIC、AnyTLS、SOCKS5等代理，只有主进程
+Node.js 版本用于部署 VMess Ws + Argo、VLESS Reality、Hysteria2、TUIC、AnyTLS、SOCKS5 等代理，并可选接入 Komari agent。
 
 ## 功能
 
-- 运行后只有主进程，无子进程。
 - 支持 VMess Ws + Argo、VLESS Reality、Hysteria2、TUIC、AnyTLS、SOCKS5。
 - 自动生成 Reality X25519 keypair 和 TLS 自签证书。
 - 自动生成订阅内容，并通过 HTTP 暴露订阅。
-- 可选 Telegram 推送、Merge-sub 节点自动上传、自动保活等。
+- 可选 Telegram 推送、Merge-sub 节点自动上传、自动保活。
+- 设置 `KOMARI_SERVER` 和 `KOMARI_KEY` 后，执行 Komari 官方 agent 安装脚本。
 
 ## 运行要求
 
@@ -35,7 +35,7 @@ node index.js
 
 ## 常用示例
 
-启用 HY2、TUIC 和 AnyTLS 或 socks5：
+启用 HY2、TUIC、AnyTLS 或 SOCKS5：
 
 ```bash
 export S5_PORT=1234
@@ -54,6 +54,20 @@ export ARGO_PORT=8001
 npm start
 ```
 
+接入 Komari agent：
+
+```bash
+export KOMARI_SERVER=https://komari.example.com
+export KOMARI_KEY=your-komari-token
+npm start
+```
+
+如果面板需要单独端口且 `KOMARI_SERVER` 没有写端口，可设置：
+
+```bash
+export KOMARI_PORT=443
+```
+
 ## 环境变量
 
 | 变量 | 默认值 | 说明 |
@@ -65,9 +79,9 @@ npm start
 | `FILE_PATH` | `.npm` | 运行目录，存放动态库、配置、订阅和临时文件。 |
 | `SUB_PATH` | `sub` | HTTP 订阅路径，例如 `/sub`。 |
 | `UUID` | `0a6568ff-ea3c-4271-9020-450560e10d63` | 节点 UUID。建议自行修改。 |
-| `NEZHA_SERVER` | 空 | 哪吒服务端地址。v1 通常形如 `host:port`。 |
-| `NEZHA_PORT` | 空 | 哪吒 v0 agent 端口；v1 模式留空。 |
-| `NEZHA_KEY` | 空 | 哪吒 v1 的 `NZ_CLIENT_SECRET` 或 v0 agent 密钥。 |
+| `KOMARI_SERVER` | 空 | Komari 面板地址，例如 `https://komari.example.com`。 |
+| `KOMARI_PORT` | 空 | Komari 面板端口，可选；`KOMARI_SERVER` 已带端口时不用填。 |
+| `KOMARI_KEY` | 空 | Komari agent token。 |
 | `ARGO_DOMAIN` | 空 | Cloudflare 固定隧道域名。为空时使用临时隧道。 |
 | `ARGO_AUTH` | 空 | Cloudflare tunnel token 或 TunnelSecret JSON。 |
 | `ARGO_PORT` | `8001` | cloudflared 反代到本地的端口。 |
@@ -84,6 +98,16 @@ npm start
 | `BOT_TOKEN` | 空 | Telegram bot token。`CHAT_ID` 和 `BOT_TOKEN` 都存在才推送。 |
 | `DISABLE_ARGO` | `false` | 设置为 `true` 时禁用 Argo/cloudflared。 |
 
+## Komari Agent
+
+程序实际执行的安装命令格式为：
+
+```bash
+wget -qO- https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh | sudo bash -s -- -e <KOMARI_SERVER> -t <KOMARI_KEY>
+```
+
+如果环境中没有 `sudo`，会自动改用 `bash` 执行。变量为空时会跳过 Komari agent。
+
 ## 运行产物
 
 运行时会在 `FILE_PATH` 目录下生成文件：
@@ -91,7 +115,6 @@ npm start
 | 文件 | 说明 |
 | --- | --- |
 | `config.json` | sing-box 配置。 |
-| `config.yaml` | 哪吒 v1 agent 配置。 |
 | `boot.log` | cloudflared 临时隧道日志。 |
 | `sub.txt` | base64 订阅内容。 |
 | `list.txt` | 明文节点列表。 |
@@ -113,12 +136,6 @@ http://<服务器IP>:<PORT>/<SUB_PATH>
 - 设置 token 格式的 `ARGO_AUTH`：使用 token 运行固定隧道。
 - 设置包含 `TunnelSecret` 的 JSON：生成 `tunnel.json` 和 `tunnel.yml` 后运行固定隧道。
 - 设置 `DISABLE_ARGO=true`：不启动 cloudflared，也不生成 VMess Argo 订阅节点。
-
-## 哪吒模式
-
-- `NEZHA_SERVER` + `NEZHA_KEY`，且 `NEZHA_PORT` 为空：使用 v1 agent 配置文件模式。
-- `NEZHA_SERVER` + `NEZHA_KEY` + `NEZHA_PORT`：使用 v0 agent 参数模式。
-- 哪吒变量为空时会跳过 agent。
 
 ## 注意事项
 

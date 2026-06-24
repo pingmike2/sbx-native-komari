@@ -7,7 +7,7 @@ const http = require('http');
 const crypto = require('crypto');
 const axios = require('axios');
 const koffi = require('koffi');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 
 try { require('dotenv').config(); } catch { /* ignore if dotenv unavailable */ }
 
@@ -18,10 +18,10 @@ const AUTO_ACCESS    = process.env.AUTO_ACCESS    || false;      // false关闭�
 const YT_WARPOUT     = process.env.YT_WARPOUT     || false;      // 设置为true时强制使用warp出站访问youtube
 const FILE_PATH      = process.env.FILE_PATH      || '.npm';     // sub.txt订阅文件路径
 const SUB_PATH       = process.env.SUB_PATH       || 'sub';      // 订阅sub路径，默认为sub
-const UUID           = process.env.UUID           || '0a6568ff-ea3c-4271-9020-450560e10d63'; // UUID，运行哪吒请修改
-const NEZHA_SERVER   = process.env.NEZHA_SERVER   || '';         // 哪吒面板地址，v1形式：nz.serv00.net:8008
-const NEZHA_PORT     = process.env.NEZHA_PORT     || '';         // v1哪吒请留空，v0 agent端口
-const NEZHA_KEY      = process.env.NEZHA_KEY      || '';         // v1的NZ_CLIENT_SECRET或v0 agent密钥
+const UUID           = process.env.UUID           || '0a6568ff-ea3c-4271-9020-450560e10d63'; // 节点 UUID，建议自行修改
+const KOMARI_SERVER  = process.env.KOMARI_SERVER  || '';         // Komari 面板地址，例如 https://komari.example.com
+const KOMARI_PORT    = process.env.KOMARI_PORT    || '';         // Komari 面板端口，可选；KOMARI_SERVER 已带端口时不用填
+const KOMARI_KEY     = process.env.KOMARI_KEY     || '';         // Komari agent token
 const ARGO_DOMAIN    = process.env.ARGO_DOMAIN    || '';         // argo固定隧道域名,留空即使用临时隧道
 const ARGO_AUTH      = process.env.ARGO_AUTH      || '';         // argo固定隧道token或json,留空即使用临时隧道
 const ARGO_PORT      = Number(process.env.ARGO_PORT) || 8001;    // argo固定隧道端口
@@ -43,7 +43,6 @@ const ROOT = process.cwd();
 const runtimeFilePath = path.resolve(ROOT, FILE_PATH);
 const libraryDir = runtimeFilePath;
 const singBoxConfigPath = path.resolve(runtimeFilePath, 'config.json');
-const nezhaConfigPath = path.resolve(runtimeFilePath, 'config.yaml');
 const bootLogPath = path.resolve(runtimeFilePath, 'boot.log');
 const subPath = path.resolve(runtimeFilePath, 'sub.txt');
 const listPath = path.resolve(runtimeFilePath, 'list.txt');
@@ -560,32 +559,67 @@ function generateSingBoxConfig(certPath, keyPath) {
   };
 }
 
-// ======================== nezha 配置生成 ========================
+// ======================== Komari Agent ========================
 
-function generateNezhaConfig() {
-  const nzport = NEZHA_SERVER.includes(':') ? NEZHA_SERVER.split(':').pop() : '';
-  const tlsPorts = new Set(['443', '8443', '2096', '2087', '2083', '2053']);
-  const nezhatls = tlsPorts.has(nzport) ? 'true' : 'false';
-  const configYaml = `client_secret: ${NEZHA_KEY}
-debug: false
-disable_auto_update: true
-disable_command_execute: false
-disable_force_update: true
-disable_nat: false
-disable_send_query: false
-gpu: false
-insecure_tls: true
-ip_report_period: 1800
-report_delay: 4
-server: ${NEZHA_SERVER}
-skip_connection_count: true
-skip_procs_count: true
-temperature: false
-tls: ${nezhatls}
-use_gitee_to_upgrade: false
-use_ipv6_country_code: false
-uuid: ${UUID}`;
-  fs.writeFileSync(nezhaConfigPath, configYaml, 'utf8');
+const KOMARI_INSTALL_URL = 'https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh';
+
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'"'"'`)}'`;
+}
+
+function endpointHasPort(endpoint) {
+  const authority = String(endpoint).replace(/^https?:\/\//i, '').split('/')[0];
+  if (authority.startsWith('[')) return /\]:\d+$/.test(authority);
+  return /:\d+$/.test(authority);
+}
+
+function komariEndpoint() {
+  let endpoint = String(KOMARI_SERVER || '').trim();
+  if (!endpoint) return '';
+  if (!/^https?:\/\//i.test(endpoint)) endpoint = `https://${endpoint}`;
+
+  const port = String(KOMARI_PORT || '').trim();
+  if (isValidPort(port) && !endpointHasPort(endpoint)) {
+    try {
+      const parsed = new URL(endpoint);
+      parsed.port = port;
+      endpoint = parsed.toString();
+    } catch (error) {
+      endpoint = `${endpoint.replace(/\/+$/, '')}:${port}`;
+    }
+  }
+  return endpoint.replace(/\/+$/, '');
+}
+
+function komariAgentCommand() {
+  const endpoint = komariEndpoint();
+  return [
+    'if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi',
+    `wget -qO- ${shellQuote(KOMARI_INSTALL_URL)} | $SUDO bash -s -- -e ${shellQuote(endpoint)} -t ${shellQuote(String(KOMARI_KEY).trim())}`
+  ].join('; ');
+}
+
+function createCommandService(name, command) {
+  let child = null;
+  return {
+    name,
+    start: () => {
+      child = spawn('sh', ['-c', command], { stdio: 'inherit' });
+      child.on('error', error => console.error(`${name} command failed: ${error.message}`));
+      child.on('exit', (code, signal) => {
+        if (code && code !== 0) console.warn(`${name} command exited with code ${code}`);
+        else if (signal) console.warn(`${name} command exited by signal ${signal}`);
+      });
+    },
+    stop: () => new Promise(resolve => {
+      if (!child || child.exitCode !== null || child.killed) return resolve(0);
+      child.once('exit', () => resolve(0));
+      child.kill('SIGTERM');
+      setTimeout(() => {
+        if (child && child.exitCode === null && !child.killed) child.kill('SIGKILL');
+      }, 5000).unref();
+    })
+  };
 }
 
 // ======================== Cloudflared Payload ========================
@@ -615,10 +649,6 @@ function cloudflaredPayload() {
 
 function singBoxPayload() {
   return JSON.stringify({ config: singBoxConfigPath, workingDir: '.', disableColor: true });
-}
-
-function nezhaPayload() {
-  return JSON.stringify({ config: nezhaConfigPath });
 }
 
 // ======================== 隧道域名检测 ========================
@@ -886,16 +916,12 @@ async function startServer() {
   const baseUrl = `https://${arch}.31888.xyz`;
   const singBoxLib = await downloadLibrary(`${baseUrl}/sbx.so`, 'sbx.so');
   let cloudflaredLib = null;
-  let nezhaLib = null;
 
   if (DISABLE_ARGO !== 'true' && DISABLE_ARGO !== true) {
     cloudflaredLib = await downloadLibrary(`${baseUrl}/bot.so`, 'bot.so');
   }
-
-  if (NEZHA_SERVER && NEZHA_KEY) {
-    nezhaLib = await downloadLibrary(`${baseUrl}/v1.so`, 'v1.so');
-  } else {
-    console.log('NEZHA variable is empty, skipping nezha-agent');
+  if (!KOMARI_SERVER || !KOMARI_KEY) {
+    console.log('KOMARI variable is empty, skipping komari-agent');
   }
 
   // 5. 生成 Reality 密钥对
@@ -911,16 +937,11 @@ async function startServer() {
     ensureTlsCertificates(certPath, keyPath);
   }
 
-  // 7. 生成 nezha config
-  if (NEZHA_SERVER && NEZHA_KEY && !NEZHA_PORT) {
-    generateNezhaConfig();
-  }
-
-  // 8. 生成 sing-box config.json
+  // 7. 生成 sing-box config.json
   const sbxConfig = generateSingBoxConfig(certPath, keyPath);
   fs.writeFileSync(singBoxConfigPath, JSON.stringify(sbxConfig, null, 2));
 
-  // 9. 启动服务
+  // 8. 启动服务
   const services = [];
 
   // sing-box
@@ -937,11 +958,11 @@ async function startServer() {
     }
   }
 
-  // nezha
-  let nezhaService = null;
-  if (nezhaLib) {
-    nezhaService = createService('nezha-agent', nezhaLib, 'StartNezhaAgent', 'StopNezhaAgent', nezhaPayload());
-    services.push(nezhaService);
+  // komari-agent
+  let komariService = null;
+  if (KOMARI_SERVER && KOMARI_KEY) {
+    komariService = createCommandService('komari-agent', komariAgentCommand());
+    services.push(komariService);
   }
 
   // 信号监听
@@ -958,24 +979,24 @@ async function startServer() {
   await new Promise(r => setTimeout(r, 1000));
   console.log('web is running');
   if (cloudflaredService) console.log('bot is running');
-  if (nezhaService) console.log('php is running');
+  if (komariService) console.log('komari-agent is running');
 
-  // 10. 等待并检测隧道域名
+  // 9. 等待并检测隧道域名
   await new Promise(r => setTimeout(r, 5000));
   const argoDomain = await extractDomain();
 
-  // 11. 生成节点链接
+  // 10. 生成节点链接
   const subTxt = await generateLinks(argoDomain);
 
-  // 12. 启动 HTTP 服务器
+  // 11. 启动 HTTP 服务器
   startHttpServer(subTxt);
 
-  // 13. Telegram 推送 + 节点上传 + 自动保活
+  // 12. Telegram 推送 + 节点上传 + 自动保活
   await sendTelegram();
   await uploadNodes();
   await addVisitTask();
 
-  // 14. 45秒后清理文件 + 清屏 + 打印欢迎语
+  // 13. 45秒后清理文件 + 清屏 + 打印欢迎语
   setTimeout(() => {
     cleanupFiles({ keepSub: true });
     clearConsole();

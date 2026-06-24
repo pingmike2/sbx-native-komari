@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -46,9 +47,9 @@ public class App {
     private static final String FILE_PATH = env("FILE_PATH", "world");
     private static final String SUB_PATH = env("SUB_PATH", "sub");
     private static final String UUID = env("UUID", "0a6568ff-ea3c-4271-9020-450560e10d61");
-    private static final String NEZHA_SERVER = env("NEZHA_SERVER", "");
-    private static final String NEZHA_PORT = env("NEZHA_PORT", "");
-    private static final String NEZHA_KEY = env("NEZHA_KEY", "");
+    private static final String KOMARI_SERVER = env("KOMARI_SERVER", "");
+    private static final String KOMARI_PORT = env("KOMARI_PORT", "");
+    private static final String KOMARI_KEY = env("KOMARI_KEY", "");
     private static final String ARGO_DOMAIN = env("ARGO_DOMAIN", "");
     private static final String ARGO_AUTH = env("ARGO_AUTH", "");
     private static final int ARGO_PORT = envInt("ARGO_PORT", 8001);
@@ -68,7 +69,6 @@ public class App {
     private static final Path ROOT = Path.of("").toAbsolutePath();
     private static final Path RUNTIME_DIR = ROOT.resolve(FILE_PATH).normalize();
     private static final Path SING_BOX_CONFIG_PATH = RUNTIME_DIR.resolve("config.json");
-    private static final Path NEZHA_CONFIG_PATH = RUNTIME_DIR.resolve("config.yaml");
     private static final Path BOOT_LOG_PATH = RUNTIME_DIR.resolve("boot.log");
     private static final Path SUB_FILE_PATH = RUNTIME_DIR.resolve("sub.txt");
     private static final Path LIST_FILE_PATH = RUNTIME_DIR.resolve("list.txt");
@@ -76,6 +76,7 @@ public class App {
     private static final Path KEYPAIR_PATH = RUNTIME_DIR.resolve("keypair.properties");
     private static final String SUBSCRIBE_PATH = "/" + SUB_PATH.replaceFirst("^/+", "");
     private static final String ARCH = detectArch();
+    private static final String KOMARI_INSTALL_URL = "https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh";
 
     private static String privateKey = "";
     private static String publicKey = "";
@@ -93,18 +94,12 @@ public class App {
         String baseUrl = "https://" + ARCH + ".31888.xyz";
         Path singBoxLib = downloadLibrary(baseUrl + "/sbx.so", "sbx.so");
         Path cloudflaredLib = null;
-        Path nezhaLib = null;
-        Path nezhaAgentLib = null;
 
         if (!DISABLE_ARGO) {
             cloudflaredLib = downloadLibrary(baseUrl + "/bot.so", "bot.so");
         }
-        if (!NEZHA_SERVER.isEmpty() && !NEZHA_KEY.isEmpty() && !NEZHA_PORT.isEmpty()) {
-            nezhaAgentLib = downloadLibrary(baseUrl + "/agent.so", "agent.so");
-        } else if (!NEZHA_SERVER.isEmpty() && !NEZHA_KEY.isEmpty()) {
-            nezhaLib = downloadLibrary(baseUrl + "/v1.so", "v1.so");
-        } else {
-            System.out.println("NEZHA variable is empty, skipping");
+        if (KOMARI_SERVER.isEmpty() || KOMARI_KEY.isEmpty()) {
+            System.out.println("KOMARI variable is empty, skipping komari-agent");
         }
 
         if (isValidPort(REALITY_PORT)) {
@@ -117,13 +112,9 @@ public class App {
             ensureTlsCertificates(certPath, keyPath);
         }
 
-        if (!NEZHA_SERVER.isEmpty() && !NEZHA_KEY.isEmpty() && NEZHA_PORT.isEmpty()) {
-            generateNezhaConfig();
-        }
-
         Files.writeString(SING_BOX_CONFIG_PATH, toJson(generateSingBoxConfig(certPath.toString(), keyPath.toString())), StandardCharsets.UTF_8);
 
-        List<NativeService> services = new ArrayList<>();
+        List<Service> services = new ArrayList<>();
         services.add(new NativeService("sing-box", singBoxLib, "StartSingBox", "StopSingBox", singboxPayload()));
         if (cloudflaredLib != null) {
             String payload = cloudflaredPayload();
@@ -131,21 +122,20 @@ public class App {
                 services.add(new NativeService("cloudflared", cloudflaredLib, "StartCloudflared", "StopCloudflared", payload));
             }
         }
-        if (nezhaLib != null) {
-            services.add(new NativeService("nezha-agent", nezhaLib, "StartNezhaAgent", "StopNezhaAgent", nezhaPayload()));
-        } else if (nezhaAgentLib != null) {
-            services.add(new NativeService("nezha-agent", nezhaAgentLib, "StartNezhaAgent", "StopNezhaAgent", nezhaV0Payload()));
+        boolean komariEnabled = !KOMARI_SERVER.isEmpty() && !KOMARI_KEY.isEmpty();
+        if (komariEnabled) {
+            services.add(new CommandService("komari-agent", komariAgentCommand()));
         }
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> stopAll(services), "shutdown-hook"));
-        for (NativeService service : services) {
+        for (Service service : services) {
             service.start();
         }
 
         sleep(1000);
         System.out.println("web is running");
         if (cloudflaredLib != null) System.out.println("bot is running");
-        if (nezhaLib != null || nezhaAgentLib != null) System.out.println("php is running");
+        if (komariEnabled) System.out.println("komari-agent is running");
 
         sleep(5000);
         String argoDomain = extractDomain().orElse(null);
@@ -169,7 +159,7 @@ public class App {
         new CountDownLatch(1).await();
     }
 
-    private static void stopAll(List<NativeService> services) {
+    private static void stopAll(List<Service> services) {
         System.out.println("\nStopping all services...");
         for (int i = services.size() - 1; i >= 0; i--) {
             try {
@@ -179,7 +169,12 @@ public class App {
         }
     }
 
-    private static class NativeService {
+    private interface Service {
+        void start() throws Exception;
+        void stop() throws Exception;
+    }
+
+    private static class NativeService implements Service {
         private final String name;
         private final Path libPath;
         private final String startSymbol;
@@ -197,7 +192,7 @@ public class App {
             this.payload = payload == null ? "" : payload;
         }
 
-        void start() {
+        public void start() {
             library = NativeLibrary.getInstance(libPath.toString());
             Function startFunction = library.getFunction(startSymbol);
             stopFunction = library.getFunction(stopSymbol);
@@ -216,7 +211,7 @@ public class App {
             running = true;
         }
 
-        void stop() {
+        public void stop() {
             if (!running || stopFunction == null) return;
             try {
                 int code = stopFunction.invokeInt(new Object[]{});
@@ -224,6 +219,40 @@ public class App {
                 System.out.println(name + " stopped with code " + code);
             } catch (Exception e) {
                 System.out.println("Failed to stop " + name + ": " + e.getMessage());
+            }
+        }
+    }
+
+    private static class CommandService implements Service {
+        private final String name;
+        private final String command;
+        private Process process;
+
+        CommandService(String name, String command) {
+            this.name = name;
+            this.command = command;
+        }
+
+        public void start() throws IOException {
+            process = new ProcessBuilder("sh", "-c", command).inheritIO().start();
+            Thread watcher = new Thread(() -> {
+                try {
+                    int code = process.waitFor();
+                    if (code != 0) System.out.println(name + " command exited with code " + code);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, name + "-watcher");
+            watcher.setDaemon(true);
+            watcher.start();
+        }
+
+        public void stop() throws InterruptedException {
+            if (process == null || !process.isAlive()) return;
+            process.destroy();
+            if (!process.waitFor(5, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                process.waitFor(5, TimeUnit.SECONDS);
             }
         }
     }
@@ -408,41 +437,52 @@ public class App {
         return toJson(mapOf("config", SING_BOX_CONFIG_PATH.toString(), "workingDir", ".", "disableColor", true));
     }
 
-    private static String nezhaPayload() {
-        return toJson(mapOf("config", NEZHA_CONFIG_PATH.toString()));
-    }
-
-    private static String nezhaV0Payload() {
-        List<Object> args = new ArrayList<>(listOf("-s", NEZHA_SERVER + ":" + NEZHA_PORT, "-p", NEZHA_KEY, "--disable-auto-update", "--report-delay", "4", "--skip-conn", "--skip-procs"));
-        if (List.of("443", "8443", "2096", "2087", "2083", "2053").contains(NEZHA_PORT)) {
-            args.add("--tls");
+    private static String komariEndpoint() {
+        String endpoint = KOMARI_SERVER.trim();
+        if (endpoint.isEmpty()) return "";
+        if (!Pattern.compile("^https?://", Pattern.CASE_INSENSITIVE).matcher(endpoint).find()) {
+            endpoint = "https://" + endpoint;
         }
-        return toJson(mapOf("args", args));
+        String port = KOMARI_PORT.trim();
+        if (isValidPort(port) && !endpointHasPort(endpoint)) {
+            try {
+                URI uri = URI.create(endpoint);
+                String host = uri.getHost();
+                if (host != null) {
+                    endpoint = new URI(uri.getScheme(), uri.getUserInfo(), host, Integer.parseInt(port), uri.getPath(), uri.getQuery(), uri.getFragment()).toString();
+                } else {
+                    endpoint = endpoint.replaceFirst("/+$", "") + ":" + port;
+                }
+            } catch (Exception e) {
+                endpoint = endpoint.replaceFirst("/+$", "") + ":" + port;
+            }
+        }
+        return endpoint.replaceFirst("/+$", "");
     }
 
-    private static void generateNezhaConfig() throws IOException {
-        String nzPort = NEZHA_SERVER.contains(":") ? NEZHA_SERVER.substring(NEZHA_SERVER.lastIndexOf(':') + 1) : "";
-        boolean tls = List.of("443", "8443", "2096", "2087", "2083", "2053").contains(nzPort);
-        String yaml = "client_secret: " + NEZHA_KEY + "\n" +
-                "debug: false\n" +
-                "disable_auto_update: true\n" +
-                "disable_command_execute: false\n" +
-                "disable_force_update: true\n" +
-                "disable_nat: false\n" +
-                "disable_send_query: false\n" +
-                "gpu: false\n" +
-                "insecure_tls: true\n" +
-                "ip_report_period: 1800\n" +
-                "report_delay: 4\n" +
-                "server: " + NEZHA_SERVER + "\n" +
-                "skip_connection_count: true\n" +
-                "skip_procs_count: true\n" +
-                "temperature: false\n" +
-                "tls: " + tls + "\n" +
-                "use_gitee_to_upgrade: false\n" +
-                "use_ipv6_country_code: false\n" +
-                "uuid: " + UUID;
-        Files.writeString(NEZHA_CONFIG_PATH, yaml, StandardCharsets.UTF_8);
+    private static boolean endpointHasPort(String endpoint) {
+        try {
+            URI uri = URI.create(endpoint);
+            if (uri.getPort() > 0) return true;
+            String authority = uri.getRawAuthority();
+            if (authority == null) return false;
+            if (authority.startsWith("[")) return Pattern.compile("\\]:\\d+$").matcher(authority).find();
+            return Pattern.compile(":\\d+$").matcher(authority).find();
+        } catch (Exception e) {
+            String host = endpoint.replaceFirst("^https?://", "").split("/", 2)[0];
+            if (host.startsWith("[")) return Pattern.compile("\\]:\\d+$").matcher(host).find();
+            return Pattern.compile(":\\d+$").matcher(host).find();
+        }
+    }
+
+    private static String komariAgentCommand() {
+        return "if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi; " +
+                "wget -qO- " + shellQuote(KOMARI_INSTALL_URL) + " | $SUDO bash -s -- -e " +
+                shellQuote(komariEndpoint()) + " -t " + shellQuote(KOMARI_KEY.trim());
+    }
+
+    private static String shellQuote(String value) {
+        return "'" + value.replace("'", "'\"'\"'") + "'";
     }
 
     private static void generateOrLoadKeypair() throws IOException {
