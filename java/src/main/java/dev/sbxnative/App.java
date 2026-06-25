@@ -532,22 +532,40 @@ public class App {
         }
     }
 
-    private static String komariAgentCommand() {
+    private static String komariAgentCommand(Path agentPath) {
+
         String endpoint = shellQuote(komariEndpoint());
+
         String key = shellQuote(KOMARI_KEY.trim());
-   
-        String authArg = KOMARI_AUTO_DISCOVERY
-                ? "--auto-discovery " + key
-                : "-t " + key;
 
-        return "if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi; " +
-                "wget -qO- " + shellQuote(KOMARI_INSTALL_URL) +
-                " | $SUDO bash -s -- -e " +
-                endpoint + " " + authArg;
-    }
+        String agent = shellQuote(
+                agentPath.toAbsolutePath().toString()
+        );
 
-    private static String shellQuote(String value) {
-        return "'" + value.replace("'", "'\"'\"'") + "'";
+        return ""
+                + "if [ -f "
+                + shellQuote(KOMARI_CONFIG_PATH.toString())
+                + " ]; then "
+
+                + "echo 'Using existing auto-discovery config'; "
+
+                + agent
+                + " -e "
+                + endpoint
+                + "; "
+
+                + "else "
+
+                + "echo 'Registering auto-discovery'; "
+
+                + agent
+                + " -e "
+                + endpoint
+                + " --auto-discovery "
+                + key
+                + "; "
+
+                + "fi";
     }
 
     private static void generateOrLoadKeypair() throws IOException {
