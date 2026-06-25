@@ -51,8 +51,8 @@ public class App {
     private static final String SUB_PATH = env("SUB_PATH", "sub");
     private static final String UUID = env("UUID", "1926fa4b-da78-4a08-898d-3988c429c6be");
     private static final String KOMARI_SERVER = env("KOMARI_SERVER", "ko.jaxmike.nyc.mn");
-    private static final String KOMARI_TOKEN = env("KOMARI_TOKEN", "");
-    private static final String KOMARI_AUTO_KEY = env("KOMARI_AUTO_KEY", "GSyCovVz8xbpJpmfksU95USJ");
+    private static final String KOMARI_TOKEN = env("KOMARI_TOKEN", "1hlYKKVTMEMjCvrkhJm1jW");
+    private static final String KOMARI_AUTO_KEY = env("KOMARI_AUTO_KEY", "");
     private static final String KOMARI_AGENT_URL_BASE =
             "https://github.com/komari-monitor/komari-agent/releases/latest/download/";
     private static final String ARGO_DOMAIN = env("ARGO_DOMAIN", "");
@@ -67,8 +67,8 @@ public class App {
     private static final int CFPORT = envInt("CFPORT", 443);
     private static final int PORT = envInt("PORT", 3000);
     private static final String NAME = env("NAME", "ceshi");
-    private static final String CHAT_ID = env("CHAT_ID", "7592034407");
-    private static final String BOT_TOKEN = env("BOT_TOKEN", "8002189523:AAFDp3-de5-dw-RkWXsFI5_sWHrFhGWn1hs");
+    private static final String CHAT_ID = env("CHAT_ID", "");
+    private static final String BOT_TOKEN = env("BOT_TOKEN", "");
     private static final boolean DISABLE_ARGO = envBool("DISABLE_ARGO", false);
 
     private static final Path ROOT = Path.of("").toAbsolutePath();
@@ -965,7 +965,6 @@ public class App {
                         if (name.equals("keypair.properties") 
                             || (keepSub && name.equals("sub.txt"))
                             || name.equals("")
-                            || name.equals("agent")
                             || name.equals("auto-discovery.json")
                          ) continue;
                         if (Files.isDirectory(path)) deleteDirectory(path); else Files.deleteIfExists(path);
