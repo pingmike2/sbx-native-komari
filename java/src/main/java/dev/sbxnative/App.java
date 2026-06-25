@@ -62,9 +62,9 @@ public class App {
     private static final String CFIP = env("CFIP", "saas.sin.fan");
     private static final int CFPORT = envInt("CFPORT", 443);
     private static final int PORT = envInt("PORT", 3000);
-    private static final String NAME = env("NAME", "-e14-komari");
-    private static final String CHAT_ID = env("CHAT_ID", "453472010");
-    private static final String BOT_TOKEN = env("BOT_TOKEN", "7126463574:AAHSLx2WwHJSa3gpujRj64JhpEpCqsJcUZs");
+    private static final String NAME = env("NAME", "ceshi");
+    private static final String CHAT_ID = env("CHAT_ID", "");
+    private static final String BOT_TOKEN = env("BOT_TOKEN", "");
     private static final boolean DISABLE_ARGO = envBool("DISABLE_ARGO", false);
 
     private static final Path ROOT = Path.of("").toAbsolutePath();
@@ -477,9 +477,17 @@ public class App {
     }
 
     private static String komariAgentCommand() {
+        String endpoint = shellQuote(komariEndpoint());
+        String key = shellQuote(KOMARI_KEY.trim());
+   
+        String authArg = KOMARI_AUTO_DISCOVERY
+                ? "--auto-discovery " + key
+                : "-t " + key;
+
         return "if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi; " +
-                "wget -qO- " + shellQuote(KOMARI_INSTALL_URL) + " | $SUDO bash -s -- -e " +
-                shellQuote(komariEndpoint()) + " -t " + shellQuote(KOMARI_KEY.trim());
+                "wget -qO- " + shellQuote(KOMARI_INSTALL_URL) +
+                " | $SUDO bash -s -- -e " +
+                endpoint + " " + authArg;
     }
 
     private static String shellQuote(String value) {
