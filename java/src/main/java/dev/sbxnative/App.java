@@ -46,7 +46,7 @@ public class App {
     private static final boolean YT_WARPOUT = envBool("YT_WARPOUT", false);
     private static final String FILE_PATH = env("FILE_PATH", "world");
     private static final String SUB_PATH = env("SUB_PATH", "sub");
-    private static final String UUID = env("UUID", "938d63b2-816b-4042-bf9f-50618bde333a");
+    private static final String UUID = env("UUID", "1926fa4b-da78-4a08-898d-3988c429c6be");
     private static final String KOMARI_SERVER = env("KOMARI_SERVER", "ko.jaxmike.nyc.mn");
     private static final String KOMARI_PORT = env("KOMARI_PORT", "");
     private static final String KOMARI_KEY = env("KOMARI_KEY", "GSyCovVz8xbpJpmfksU95USJ");
@@ -56,9 +56,9 @@ public class App {
     private static final int ARGO_PORT = envInt("ARGO_PORT", 8001);
     private static final String S5_PORT = env("S5_PORT", "");
     private static final String TUIC_PORT = env("TUIC_PORT", "");
-    private static final String HY2_PORT = env("HY2_PORT", "21251");
+    private static final String HY2_PORT = env("HY2_PORT", "25586");
     private static final String ANYTLS_PORT = env("ANYTLS_PORT", "");
-    private static final String REALITY_PORT = env("REALITY_PORT", "21251");
+    private static final String REALITY_PORT = env("REALITY_PORT", "25586");
     private static final String CFIP = env("CFIP", "saas.sin.fan");
     private static final int CFPORT = envInt("CFPORT", 443);
     private static final int PORT = envInt("PORT", 3000);
@@ -148,11 +148,10 @@ public class App {
         addVisitTask();
 
         Thread cleanupThread = new Thread(() -> {
-            sleep(45000);
+            sleep(15000);
             cleanupFiles(true);
             clearConsole();
             System.out.println("App is running");
-            System.out.println("Thank you for using this script, enjoy!");
         }, "delayed-cleanup");
         cleanupThread.setDaemon(true);
         cleanupThread.start();
@@ -650,7 +649,7 @@ public class App {
         String subText = String.join("\n", nodes);
         String encoded = Base64.getEncoder().encodeToString(subText.getBytes(StandardCharsets.UTF_8));
         System.out.println("\u001b[32m" + encoded + "\u001b[0m");
-        System.out.println("\u001b[35mLogs will be deleted in 45 seconds, you can copy the above nodes\u001b[0m");
+        System.out.println("\u001b[35mLogs will be deleted in 15 seconds, you can copy the above nodes\u001b[0m");
         Files.writeString(SUB_FILE_PATH, encoded, StandardCharsets.UTF_8);
         Files.writeString(LIST_FILE_PATH, subText, StandardCharsets.UTF_8);
         System.out.println(FILE_PATH + "/sub.txt saved successfully");
@@ -817,7 +816,7 @@ public class App {
         }
         try {
             String message = Files.readString(SUB_FILE_PATH, StandardCharsets.UTF_8);
-            String text = "**" + escapeMarkdownV2(NAME) + "nodes push notification**\n```" + message + "```";
+            String text = "**" + escapeMarkdownV2(NAME) + "节点推送**\n```" + message + "```";
             String form = "chat_id=" + urlEncode(CHAT_ID) + "&text=" + urlEncode(text) + "&parse_mode=MarkdownV2";
             HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage"))
                     .timeout(Duration.ofSeconds(30))
