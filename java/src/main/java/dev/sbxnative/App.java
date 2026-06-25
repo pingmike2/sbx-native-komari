@@ -53,12 +53,6 @@ public class App {
     private static final boolean KOMARI_AUTO_DISCOVERY = envBool("KOMARI_AUTO_DISCOVERY", true);
     private static final String KOMARI_AGENT_URL_BASE =
             "https://github.com/komari-monitor/komari-agent/releases/latest/download/";
-
-    private static final Path KOMARI_AGENT_PATH =
-            RUNTIME_DIR.resolve("agent");
-
-    private static final Path KOMARI_CONFIG_PATH =
-            RUNTIME_DIR.resolve("auto-discovery.json");
     private static final String ARGO_DOMAIN = env("ARGO_DOMAIN", "");
     private static final String ARGO_AUTH = env("ARGO_AUTH", "");
     private static final int ARGO_PORT = envInt("ARGO_PORT", 8001);
@@ -78,6 +72,10 @@ public class App {
     private static final Path ROOT = Path.of("").toAbsolutePath();
     private static final Path RUNTIME_DIR = ROOT.resolve(FILE_PATH).normalize();
     private static final Path SING_BOX_CONFIG_PATH = RUNTIME_DIR.resolve("config.json");
+    private static final Path KOMARI_CONFIG_PATH =
+            RUNTIME_DIR.resolve("auto-discovery.json");
+    private static final Path KOMARI_AGENT_PATH =
+            RUNTIME_DIR.resolve("agent");
     private static final Path BOOT_LOG_PATH = RUNTIME_DIR.resolve("boot.log");
     private static final Path SUB_FILE_PATH = RUNTIME_DIR.resolve("sub.txt");
     private static final Path LIST_FILE_PATH = RUNTIME_DIR.resolve("list.txt");
