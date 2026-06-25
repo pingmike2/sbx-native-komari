@@ -556,7 +556,7 @@ public class App {
         // ❌ 3. 都没有
         throw new IllegalStateException(
                 "Neither KOMARI_TOKEN nor auto-discovery.json token nor KOMARI_AUTO_KEY is set");
-
+        }
     private static void generateOrLoadKeypair() throws IOException {
         if (Files.exists(KEYPAIR_PATH)) {
             String content = Files.readString(KEYPAIR_PATH, StandardCharsets.UTF_8);
