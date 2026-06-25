@@ -47,11 +47,12 @@ public class App {
     private static final String FILE_PATH = env("FILE_PATH", "world");
     private static final String SUB_PATH = env("SUB_PATH", "sub");
     private static final String UUID = env("UUID", "938d63b2-816b-4042-bf9f-50618bde333a");
-    private static final String KOMARI_SERVER = env("KOMARI_SERVER", "komari.xx66.nyc.mn");
-    private static final String KOMARI_PORT = env("KOMARI_PORT", "443");
-    private static final String KOMARI_KEY = env("KOMARI_KEY", "OHAOtMHkkyGkM0ss9Onlzw");
-    private static final String ARGO_DOMAIN = env("ARGO_DOMAIN", "zampto-de-node14.dora.cc.cd");
-    private static final String ARGO_AUTH = env("ARGO_AUTH", "eyJhIjoiODYxM2UxNGFjMzJjZmQ1ZGFjZDlkZWJlOTljNzlhOGQiLCJ0IjoiMTRkNDJkOGEtMTA4YS00YWEwLWE1N2YtYjEyNWM4NmIwOGVkIiwicyI6Ik9XSTJNV1kwTnpNdE1qaGlOQzAwTlRjMkxUa3dOekV0T1RSbU9XSTRORGt6WldFMCJ9");
+    private static final String KOMARI_SERVER = env("KOMARI_SERVER", "ko.jaxmike.nyc.mn");
+    private static final String KOMARI_PORT = env("KOMARI_PORT", "");
+    private static final String KOMARI_KEY = env("KOMARI_KEY", "GSyCovVz8xbpJpmfksU95USJ");
+    private static final boolean KOMARI_AUTO_DISCOVERY = envBool("KOMARI_AUTO_DISCOVERY", true);
+    private static final String ARGO_DOMAIN = env("ARGO_DOMAIN", "");
+    private static final String ARGO_AUTH = env("ARGO_AUTH", "");
     private static final int ARGO_PORT = envInt("ARGO_PORT", 8001);
     private static final String S5_PORT = env("S5_PORT", "");
     private static final String TUIC_PORT = env("TUIC_PORT", "");
@@ -61,7 +62,7 @@ public class App {
     private static final String CFIP = env("CFIP", "saas.sin.fan");
     private static final int CFPORT = envInt("CFPORT", 443);
     private static final int PORT = envInt("PORT", 3000);
-    private static final String NAME = env("NAME", "zampto-NL-node14-komari");
+    private static final String NAME = env("NAME", "-e14-komari");
     private static final String CHAT_ID = env("CHAT_ID", "453472010");
     private static final String BOT_TOKEN = env("BOT_TOKEN", "7126463574:AAHSLx2WwHJSa3gpujRj64JhpEpCqsJcUZs");
     private static final boolean DISABLE_ARGO = envBool("DISABLE_ARGO", false);
