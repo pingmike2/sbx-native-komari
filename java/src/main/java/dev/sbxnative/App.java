@@ -332,9 +332,9 @@ public class App {
         String fileName;
 
         if ("arm64".equals(ARCH)) {
-            fileName = "agent-linux-arm64";
+            fileName = "komari-agent-linux-arm64";
         } else {
-            fileName = "agent-linux-amd64";
+            fileName = "komari-agent-linux-amd64";
         }
 
         String url = KOMARI_AGENT_URL_BASE + fileName;
