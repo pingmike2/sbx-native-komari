@@ -500,9 +500,12 @@ public class App {
     private static String komariEndpoint() {
         String endpoint = KOMARI_SERVER.trim();
         if (endpoint.isEmpty()) return "";
-        if (!Pattern.compile("^https?://", Pattern.CASE_INSENSITIVE).matcher(endpoint).find()) {
+        if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
             endpoint = "https://" + endpoint;
         }
+        
+        return endpoint.replaceAll("/+$", "");
+    }
         if (isValidPort(port) && !endpointHasPort(endpoint)) {
             try {
                 URI uri = URI.create(endpoint);
