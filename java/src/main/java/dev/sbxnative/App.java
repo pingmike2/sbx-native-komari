@@ -39,7 +39,10 @@ public class App {
             .build();
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final Map<String, String> DOT_ENV = loadDotEnv();
-
+    private static String shellQuote(String s) {
+        if (s == null) return "''";
+        return "'" + s.replace("'", "'\"'\"'") + "'";
+    }
     private static final String UPLOAD_URL = env("UPLOAD_URL", "");
     private static final String PROJECT_URL = env("PROJECT_URL", "");
     private static final boolean AUTO_ACCESS = envBool("AUTO_ACCESS", false);
@@ -106,7 +109,7 @@ public class App {
             cloudflaredLib = downloadLibrary(baseUrl + "/bot.so", "bot.so");
         }
         if (KOMARI_SERVER.isEmpty() || KOMARI_KEY.isEmpty()) {
-            System.out.println("KOMARI variable is empty, skipping komari-agent");
+            System.out.println("KOMARI disabled");
         }
 
         if (isValidPort(REALITY_PORT)) {
@@ -140,7 +143,7 @@ public class App {
                             komariAgentCommand(agent)
                     )
         );
-}
+    }
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> stopAll(services), "shutdown-hook"));
         for (Service service : services) {
