@@ -51,9 +51,8 @@ public class App {
     private static final String SUB_PATH = env("SUB_PATH", "sub");
     private static final String UUID = env("UUID", "1926fa4b-da78-4a08-898d-3988c429c6be");
     private static final String KOMARI_SERVER = env("KOMARI_SERVER", "ko.jaxmike.nyc.mn");
-    private static final String KOMARI_PORT = env("KOMARI_PORT", "");
-    private static final String KOMARI_KEY = env("KOMARI_KEY", "GSyCovVz8xbpJpmfksU95USJ");
-    private static final boolean KOMARI_AUTO_DISCOVERY = envBool("KOMARI_AUTO_DISCOVERY", true);
+    private static final String KOMARI_TOKEN = env("KOMARI_TOKEN", "");
+    private static final String KOMARI_AUTO_KEY = env("KOMARI_AUTO_KEY", "GSyCovVz8xbpJpmfksU95USJ");
     private static final String KOMARI_AGENT_URL_BASE =
             "https://github.com/komari-monitor/komari-agent/releases/latest/download/";
     private static final String ARGO_DOMAIN = env("ARGO_DOMAIN", "");
@@ -536,37 +535,28 @@ public class App {
     private static String komariAgentCommand(Path agentPath) {
 
         String endpoint = shellQuote(komariEndpoint());
+        String agent = shellQuote(agentPath.toAbsolutePath().toString());
 
-        String key = shellQuote(KOMARI_KEY.trim());
+        String token = KOMARI_TOKEN.trim();
+        String autoKey = KOMARI_AUTO_KEY.trim();
 
-        String agent = shellQuote(
-                agentPath.toAbsolutePath().toString()
-        );
+        // ✅ 1. 手动模式（最高优先级）
+        if (!token.isEmpty()) {
+            return agent + " -e " + endpoint + " -t " + shellQuote(token);
+        }
 
-        return ""
-                + "if [ -f "
-                + shellQuote(KOMARI_CONFIG_PATH.toString())
-                + " ]; then "
+        // ✅ 2. 已注册过（auto-discovery.json 存在）
+        if (Files.exists(KOMARI_CONFIG_PATH)) {
+            return agent + " -e " + endpoint;
+        }
 
-                + "echo 'Using existing auto-discovery config'; "
+        // ✅ 3. 首次自动注册
+        if (!autoKey.isEmpty()) {
+            return agent + " -e " + endpoint + " --auto-discovery " + shellQuote(autoKey);
+        }
 
-                + agent
-                + " -e "
-                + endpoint
-                + "; "
-
-                + "else "
-
-                + "echo 'Registering auto-discovery'; "
-
-                + agent
-                + " -e "
-                + endpoint
-                + " --auto-discovery "
-                + key
-                + "; "
-
-                + "fi";
+        throw new IllegalStateException(
+            "Neither KOMARI_TOKEN nor KOMARI_AUTO_KEY is set");
     }
 
     private static void generateOrLoadKeypair() throws IOException {
@@ -976,7 +966,7 @@ public class App {
                         String name = path.getFileName().toString();
                         if (name.equals("keypair.properties") 
                             || (keepSub && name.equals("sub.txt"))
-                            || name.equals("auto-discovery.json")
+                            || name.equals("")
                              || name.equals("agent")
                          ) continue;
                         if (Files.isDirectory(path)) deleteDirectory(path); else Files.deleteIfExists(path);
