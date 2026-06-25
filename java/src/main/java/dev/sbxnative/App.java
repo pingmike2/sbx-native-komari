@@ -252,7 +252,10 @@ public class App {
         }
 
         public void start() throws IOException {
-            process = new ProcessBuilder("sh", "-c", command).inheritIO().start();
+            process = new ProcessBuilder("sh", "-c", command)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                     .start();
             Thread watcher = new Thread(() -> {
                 try {
                     int code = process.waitFor();
