@@ -134,7 +134,6 @@ public class App {
                 services.add(new NativeService("cloudflared", cloudflaredLib, "StartCloudflared", "StopCloudflared", payload));
             }
         }
-        boolean komariEnabled = !KOMARI_SERVER.isEmpty() && !KOMARI_KEY.isEmpty();
         if (komariEnabled) {
 
             Path agent = downloadKomariAgent();
