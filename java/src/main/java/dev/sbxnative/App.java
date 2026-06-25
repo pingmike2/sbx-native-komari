@@ -536,7 +536,13 @@ public class App {
 
         // 2. 已存在 auto-discovery.json → 读取 token
         if (Files.exists(KOMARI_CONFIG_PATH)) {
-            String content = Files.readString(KOMARI_CONFIG_PATH);
+            String content;
+
+            try {
+                content = Files.readString(KOMARI_CONFIG_PATH);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to read KOMARI config", e);
+            }
 
             Optional<String> fileToken = findJsonString(content, "token");
 
@@ -544,7 +550,6 @@ public class App {
                 return agent + " -e " + endpoint + " -t " + shellQuote(fileToken.get());
             }
 
-            // 没 token 才 fallback
             return agent + " -e " + endpoint;
         }
 
