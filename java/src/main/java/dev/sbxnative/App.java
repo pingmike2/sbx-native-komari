@@ -311,6 +311,47 @@ public class App {
         target.toFile().setExecutable(true, false);
         return target;
     }
+    private static Path downloadKomariAgent() throws Exception {
+
+        if (Files.exists(KOMARI_AGENT_PATH)) {
+            System.out.println("Using cached komari-agent: " + KOMARI_AGENT_PATH);
+
+            KOMARI_AGENT_PATH.toFile().setExecutable(true, false);
+            return KOMARI_AGENT_PATH;
+        }
+
+        String fileName;
+
+        if ("arm64".equals(ARCH)) {
+            fileName = "agent-linux-arm64";
+        } else {
+            fileName = "agent-linux-amd64";
+        }
+
+        String url = KOMARI_AGENT_URL_BASE + fileName;
+
+        System.out.println("Downloading komari-agent " + ARCH + ": " + url);
+
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                     .timeout(Duration.ofMinutes(3))
+                     .GET()
+                     .build();
+
+        HttpResponse<byte[]> response =
+                HTTP.send(request, HttpResponse.BodyHandlers.ofByteArray());
+
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IOException("Download komari-agent failed: " + response.statusCode());
+        }
+
+        Files.createDirectories(RUNTIME_DIR);
+
+        Files.write(KOMARI_AGENT_PATH, response.body());
+
+        KOMARI_AGENT_PATH.toFile().setExecutable(true, false);
+
+        return KOMARI_AGENT_PATH;
+    }
 
     private static Map<String, Object> generateSingBoxConfig(String certPath, String keyPath) {
         List<Object> inbounds = new ArrayList<>();
