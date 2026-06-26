@@ -14,8 +14,7 @@ RUN apt-get update && \
 
 COPY package*.json ./
 
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev
+RUN npm install --omit=dev
 
 COPY . .
 
