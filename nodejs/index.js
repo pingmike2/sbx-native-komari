@@ -17,11 +17,11 @@ const PROJECT_URL    = process.env.PROJECT_URL    || '';         // 需要上传
 const AUTO_ACCESS    = process.env.AUTO_ACCESS    || false;      // false关闭自动保活，true开启,需同时填写PROJECT_URL变量
 const YT_WARPOUT     = process.env.YT_WARPOUT     || false;      // 设置为true时强制使用warp出站访问youtube
 const FILE_PATH      = process.env.FILE_PATH      || '.npm';     // sub.txt订阅文件路径
-const SUB_PATH       = process.env.SUB_PATH       || 'subb';      // 订阅sub路径，默认为sub
-const UUID           = process.env.UUID           || '0c439f08-4726-40ec-a383-a962a13ba3c1'; // UUID，运行哪吒请修改
-const NEZHA_SERVER   = process.env.NEZHA_SERVER   || 'na.jaxmike.nyc.mn:443';         // 哪吒面板地址，v1形式：nz.serv00.net:8008
+const SUB_PATH       = process.env.SUB_PATH       || 'sub';      // 订阅sub路径，默认为sub
+const UUID           = process.env.UUID           || '0a6568ff-ea3c-4271-9020-450560e10d63'; // UUID，运行哪吒请修改
+const NEZHA_SERVER   = process.env.NEZHA_SERVER   || '';         // 哪吒面板地址，v1形式：nz.serv00.net:8008
 const NEZHA_PORT     = process.env.NEZHA_PORT     || '';         // v1哪吒请留空，v0 agent端口
-const NEZHA_KEY      = process.env.NEZHA_KEY      || 'yZzoYDVoLyQKBMk3IB3QHiq1NCj9O3wx';         // v1的NZ_CLIENT_SECRET或v0 agent密钥
+const NEZHA_KEY      = process.env.NEZHA_KEY      || '';         // v1的NZ_CLIENT_SECRET或v0 agent密钥
 const ARGO_DOMAIN    = process.env.ARGO_DOMAIN    || '';         // argo固定隧道域名,留空即使用临时隧道
 const ARGO_AUTH      = process.env.ARGO_AUTH      || '';         // argo固定隧道token或json,留空即使用临时隧道
 const ARGO_PORT      = Number(process.env.ARGO_PORT) || 8001;    // argo固定隧道端口
@@ -30,12 +30,12 @@ const TUIC_PORT      = process.env.TUIC_PORT      || '';         // tuic端口�
 const HY2_PORT       = process.env.HY2_PORT       || '';         // hy2端口，留空不启用
 const ANYTLS_PORT    = process.env.ANYTLS_PORT    || '';         // AnyTLS端口，留空不启用
 const REALITY_PORT   = process.env.REALITY_PORT   || '';         // reality端口，留空不启用
-const CFIP           = process.env.CFIP           || 'www.ntu.edu.sg'; // 优选域名或优选IP
+const CFIP           = process.env.CFIP           || 'saas.sin.fan'; // 优选域名或优选IP
 const CFPORT         = Number(process.env.CFPORT) || 443;        // 优选域名或优选IP对应端口
 const PORT           = Number(process.env.PORT)   || 3000;       // http订阅端口
-const NAME           = process.env.NAME           || 'sbxnj';         // 节点名称
-const CHAT_ID        = process.env.CHAT_ID        || '7592034407';         // Telegram chat_id，两个变量不全不推送
-const BOT_TOKEN      = process.env.BOT_TOKEN      || '8002189523:AAFDp3-de5-dw-RkWXsFI5_sWHrFhGWn1hs';         // Telegram bot_token，两个变量不全不推送
+const NAME           = process.env.NAME           || '';         // 节点名称
+const CHAT_ID        = process.env.CHAT_ID        || '';         // Telegram chat_id，两个变量不全不推送
+const BOT_TOKEN      = process.env.BOT_TOKEN      || '';         // Telegram bot_token，两个变量不全不推送
 const DISABLE_ARGO   = process.env.DISABLE_ARGO   || false;      // 设置为true时禁用argo
 // ==============================================================
 
@@ -91,7 +91,7 @@ function cleanupOldFiles() {
 
 function cleanupFiles(options = {}) {
   const keepFiles = new Set(['keypair.properties']);
-  if (options.keepSub) keepFiles.add('ssub.txt');
+  if (options.keepSub) keepFiles.add('sub.txt');
   if (fs.existsSync(runtimeFilePath)) {
     try {
       const files = fs.readdirSync(runtimeFilePath);
@@ -453,7 +453,7 @@ function generateSingBoxConfig(certPath, keyPath) {
       tag: 'tuic-in',
       listen: '::',
       listen_port: parseInt(TUIC_PORT),
-      users: [{ uuid: UUID }],
+      users: [{ uuid: UUID, password: UUID }],
       congestion_control: 'bbr',
       tls: {
         enabled: true,
@@ -520,7 +520,7 @@ function generateSingBoxConfig(certPath, keyPath) {
     remoteRuleSet('netflix', 'https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/netflix.srs'),
     remoteRuleSet('openai', 'https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs')
   ];
-  const wireguardRuleSets = ['openai', 'netflix'];
+  const wireguardRuleSets = ['netflix'];
 
   // YouTube WARP 出站检测
   let needYoutubeWarp = YT_WARPOUT === true || YT_WARPOUT === 'true';
@@ -724,7 +724,7 @@ async function generateLinks(argoDomain) {
 
   // TUIC
   if (isValidPort(TUIC_PORT)) {
-    subTxt += `\ntuic://${UUID}:@${SERVER_IP}:${TUIC_PORT}?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#${nodeName}`;
+    subTxt += `\ntuic://${UUID}:${UUID}@${SERVER_IP}:${TUIC_PORT}?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#${nodeName}`;
   }
 
   // Hysteria2
@@ -883,7 +883,7 @@ async function startServer() {
   argoType();
 
   // 4. 下载 .so 库文件
-  const baseUrl = `https://${arch}.ssss.nyc.mn`;
+  const baseUrl = `https://${arch}.31888.xyz`;
   const singBoxLib = await downloadLibrary(`${baseUrl}/sbx.so`, 'sbx.so');
   let cloudflaredLib = null;
   let nezhaLib = null;
@@ -975,12 +975,13 @@ async function startServer() {
   await uploadNodes();
   await addVisitTask();
 
-  // 14. 15秒后清理文件 + 清屏 + 打印欢迎语
+  // 14. 45秒后清理文件 + 清屏 + 打印欢迎语
   setTimeout(() => {
     cleanupFiles({ keepSub: true });
     clearConsole();
     console.log('App is running');
-  }, 15000);
+    console.log('Thank you for using this script, enjoy!');
+  }, 45000);
 }
 
 startServer();
